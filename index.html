@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <title>Li Time Battery Status</title>
+    <style>
+        body {
+            background-color: #484848;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .text-contrast {
+            color: white;
+        }
+
+        .form-control:disabled, .form-control[readonly] {
+            background-color: #fff;
+            opacity: 1;
+        }
+        .input-group-text {
+            width: 160px;
+        }
+        .timestamp {
+            font-size: 0.8em;
+        }
+        #myProgress {
+            background-color: white;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        #myProgress > span {
+            padding: 5px;
+        }
+
+        #myBar {
+            width: 0%;
+            padding: 10px;
+            background-color: #04AA6D;
+            text-align: center; /* To center it horizontally (if you want) */
+            color: white;
+            border-radius: 0px 0px 0px 5px;
+        }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+        <h1>Li Time Battery Status</h1>
+        
+        <div id="battery-connect-container" class="container" style="padding-bottom: 20px">
+            <button id="battery-connect" class="btn btn-primary">Connect</button>
+            <div class="text-contrast">(Chrome only)</div>
+        </div>
+        <div class="container">
+            <div id="myProgress">
+                <span>Charge Level</span>
+                <div id="myBar">-</div>
+            </div>
+            
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="watts">Watts</span>
+                <input type="text" class="form-control" id="watts-form" aria-describedby="watts" disabled="true">
+            </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="state">Charge State</span>
+                <input type="text" class="form-control" id="state-form" aria-describedby="state" disabled="true">
+            </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="temperatures">Temperatures</span>
+                <input type="text" class="form-control" id="temperatures-form" aria-describedby="temperatures" disabled="true">
+            </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="volt">Volt/Current</span>
+                <input type="text" class="form-control" id="volt-form" aria-describedby="volt" disabled="true">
+            </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="level">Charge Level</span>
+                <input type="text" class="form-control" id="level-form" aria-describedby="level" disabled="true">
+            </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="cellvolts">Cell Volts</span>
+                <input type="text" class="form-control" id="cellvolts-form" aria-describedby="cellvolts" disabled="true">
+            </div>
+            <div class="alert alert-primary" role="alert" id="msgalert" style="display: none"></div>
+
+            <div id="listContainer"></div>
+        </div>
+    </div>
+    <script src="./bootstrap.bundle.min.js"></script>
+    <script>
+        function timeout(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        const fmt = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 4 });
+        let currentArray = [];
+        let statisticsArray = JSON.parse(localStorage.getItem('statisticsArray'));
+        if (!statisticsArray) {
+            statisticsArray = [];
+        }
+
+        let date = Date.now();
+
+        let $bcc = document.getElementById('battery-connect-container');
+        let $bc = document.getElementById('battery-connect');
+        let $tf = document.getElementById('temperatures-form');
+        // let $tfC = document.getElementById('temperaturesC-form');
+        let $vf = document.getElementById('volt-form');
+        let $cf = document.getElementById('current-form');
+        let $lf = document.getElementById('level-form');
+        let $cvf = document.getElementById('cellvolts-form');
+        let $sf = document.getElementById('state-form');
+        let $wf = document.getElementById('watts-form');
+        let $msg = document.getElementById('msgalert');
+        let elem = document.getElementById("myBar");
+        let width = 1;
+
+        function getTimestamp (time) {
+        const pad = (n,s=2) => (`${new Array(s).fill(0)}${n}`).slice(-s);
+        const d = new Date(time);
+        
+        return `${pad(d.getFullYear(),4)}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+        
+        $bc.onclick = (e) => {
+            e.preventDefault();
+            
+            (async function() {
+                let device;
+                if(navigator.userAgent.toLowerCase().includes('bluefy')) {
+                    device = await navigator.bluetooth.requestDevice({
+                        filters: [{services: [0xFFE0]}]
+                    });
+                } else {
+                    device = await navigator.bluetooth.requestDevice({
+                        filters: [{services: [0xFFE0]}]
+                    });
+                }
+                let server = await device.gatt.connect();
+
+                let service = await server.getPrimaryService(0xFFE0);
+                let rxCharacteristic = await service.getCharacteristic(0xFFE2);
+
+                let txCharacteristic = await service.getCharacteristic(0xFFE1);
+                await txCharacteristic.startNotifications();
+
+                let requestType = '';
+                txCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
+                    try {
+                        const packet = event.target.value;
+                        const payload = new DataView(packet.buffer);
+
+                        let voltage = payload.getUint32(12, true) / 1000;
+                        let current = payload.getInt32(48, true) / 1000;
+                        let remianingAh = payload.getUint16(62, true) / 100;
+                        let capacityAh = payload.getUint16(64, true) / 100;
+
+                        let cellVolts = [];
+                        let offset = 16;
+                        for(let x=0; x < 16; x++) {
+                            let cellVolt = payload.getUint16(offset+x*2, true);
+                            if(cellVolt !== 0) {
+                                cellVolts.push(cellVolt / 1000);
+                            }
+                        }
+
+                        let cellTempC = payload.getInt16(52, true);
+                        let cellTempF = cellTempC * (9/5) + 32;
+                        let mosfetTempC = payload.getInt16(54, true);
+                        let mosfetTempF = mosfetTempC * (9/5) + 32;
+
+                        // Display stats
+                        $tf.value = "battery: " + cellTempC + "°C / " + cellTempF.toFixed(2) + "°F" + "   -   mosfet: " + mosfetTempC + "°C / " + mosfetTempF.toFixed(2) + "°F";
+
+                        let state = '-';
+                        if(current > 0) {
+                            state = fmt.format(Math.abs((capacityAh - remianingAh) / current).toFixed(2)) + " hours till charged";
+                        } else if(current < 0) {
+                            state = fmt.format(Math.abs(remianingAh / current).toFixed(2)) + " hours till depleted";
+                        }
+
+                        $vf.value = voltage + ' / ' + current;
+                        let chargePercent = (remianingAh / capacityAh) * 100;
+                        $lf.value = fmt.format(chargePercent) + "% (" + remianingAh + "/" + capacityAh + ")";
+                        $sf.value = state;
+                        $wf.value = fmt.format((current * voltage).toFixed(2));
+
+                        elem.style.width = fmt.format(chargePercent) + "%";
+                        elem.innerHTML = fmt.format(chargePercent) + "%";
+
+                        $cvf.value = cellVolts.join(', ');
+                    } catch (error) {
+                        console.error(error);
+                    }
+
+                    requestType = '';
+                });
+
+                let requestReady = async function() {
+                    while(true) {
+                        if(requestType === '') {
+                            break;
+                        }
+                        await timeout(250);
+                    }
+                };
+
+                let getStats = async function () {
+                    const buffer = new ArrayBuffer(8);
+                    const view = new DataView(buffer);
+                    view.setUint16(0, 0x0000);
+                    view.setUint16(2, 0x0401);
+                    view.setUint16(4, 0x1355);
+                    view.setUint16(6, 0xAA17);
+
+                    requestType = 'getStats';
+                    if(rxCharacteristic.writeValueWithResponse) {
+                        await rxCharacteristic.writeValueWithResponse(buffer);
+                    } else {
+                        await rxCharacteristic.writeValue(buffer);
+                    }
+                };
+
+                $bcc.parentNode.removeChild($bcc);
+                $msg.style.display = 'none';
+
+                while(true) {
+                    try {
+                        //console.log('Starting battery read');
+                        await getStats();
+                        await requestReady();
+                    } catch(err) {
+                        console.error(err);
+                        $msg.style.display = 'block';
+                        $msg.innerHTML = err;
+                    }
+
+                    await timeout(3000);
+                }
+
+            })().catch((err) => {
+                console.error(err);
+                $msg.style.display = 'block';
+                $msg.innerHTML = err;
+            });
+        };
+    </script>
+  </body>
+</html>
