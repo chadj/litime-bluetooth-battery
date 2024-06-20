@@ -52,6 +52,10 @@
             color: white;
             border-radius: 0px 0px 0px 5px;
         }
+
+        a {
+            color: #03a0fd
+        }
     </style>
   </head>
   <body>
@@ -77,8 +81,12 @@
                 <input type="text" class="form-control" id="state-form" aria-describedby="state" disabled="true">
             </div>
             <div class="input-group mb-3">
-                <span class="input-group-text" id="temperatures">Temperatures</span>
+                <span class="input-group-text" id="temperatures">Battery Temp</span>
                 <input type="text" class="form-control" id="temperatures-form" aria-describedby="temperatures" disabled="true">
+            </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="bms-temp">BMS Temp</span>
+                <input type="text" class="form-control" id="bms-temp-form" aria-describedby="bmstemperatures" disabled="true">
             </div>
             <div class="input-group mb-3">
                 <span class="input-group-text" id="volt">Volt/Current</span>
@@ -96,6 +104,13 @@
 
             <div id="listContainer"></div>
         </div>
+
+        <footer class="footer mt-3">
+            <div class="container">
+              <span class="small text-contrast">litime-bluetooth-battery is open source and hosted on <a href="https://github.com/chadj/litime-bluetooth-battery">Github</a>.  Contributions are welcome.  <a href="https://github.com/chadj/litime-bluetooth-battery">https://github.com/chadj/litime-bluetooth-battery</a> </span><br />
+              <span class="small text-contrast">Send questions or comments to <a href="mailto:chadjamesjohnson@gmail.com">chadjamesjohnson@gmail.com</a> | <a href="https://chadj.github.io/renogy-smart-battery/">Renogy version</a></span><br />
+            </div>
+        </footer>
     </div>
     <script src="./bootstrap.bundle.min.js"></script>
     <script>
@@ -115,6 +130,7 @@
         let $bcc = document.getElementById('battery-connect-container');
         let $bc = document.getElementById('battery-connect');
         let $tf = document.getElementById('temperatures-form');
+        let $btf = document.getElementById('bms-temp-form');
         // let $tfC = document.getElementById('temperaturesC-form');
         let $vf = document.getElementById('volt-form');
         let $cf = document.getElementById('current-form');
@@ -177,11 +193,12 @@
 
                         let cellTempC = payload.getInt16(52, true);
                         let cellTempF = cellTempC * (9/5) + 32;
-                        let mosfetTempC = payload.getInt16(54, true);
-                        let mosfetTempF = mosfetTempC * (9/5) + 32;
+                        let bmsTempC = payload.getInt16(54, true);
+                        let bmsTempF = bmsTempC * (9/5) + 32;
 
                         // Display stats
-                        $tf.value = "battery: " + cellTempC + "°C / " + cellTempF.toFixed(2) + "°F" + "   -   mosfet: " + mosfetTempC + "°C / " + mosfetTempF.toFixed(2) + "°F";
+                        $tf.value = cellTempC + "°C / " + cellTempF.toFixed(2) + "°F";
+                        $btf.value = bmsTempC + "°C / " + bmsTempF.toFixed(2) + "°F";
 
                         let state = '-';
                         if(current > 0) {
