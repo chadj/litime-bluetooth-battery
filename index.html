@@ -210,7 +210,7 @@
                             let duration = Math.abs(remianingAh / current).toFixed(3);
                             let hours = Math.floor(duration);
                             let minutes = Math.round((duration - hours) * 60);
-                            state = fmt.format(hours) + " hours " + fmt.format(minutes) + " hours till depleted";
+                            state = fmt.format(hours) + " hours " + fmt.format(minutes) + " minutes till depleted";
                         }
 
                         $vf.value = voltage + ' / ' + current;
