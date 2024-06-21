@@ -202,9 +202,15 @@
 
                         let state = '-';
                         if(current > 0) {
-                            state = fmt.format(Math.abs((capacityAh - remianingAh) / current).toFixed(2)) + " hours till charged";
+                            let duration = Math.abs((capacityAh - remianingAh) / current).toFixed(3);
+                            let hours = Math.floor(duration);
+                            let minutes = Math.round((duration - hours) * 60);
+                            state = fmt.format(hours) + " hours " + fmt.format(minutes) + " minutes till charged";
                         } else if(current < 0) {
-                            state = fmt.format(Math.abs(remianingAh / current).toFixed(2)) + " hours till depleted";
+                            let duration = Math.abs(remianingAh / current).toFixed(3);
+                            let hours = Math.floor(duration);
+                            let minutes = Math.round((duration - hours) * 60);
+                            state = fmt.format(hours) + " hours " + fmt.format(minutes) + " hours till depleted";
                         }
 
                         $vf.value = voltage + ' / ' + current;
