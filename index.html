@@ -202,12 +202,18 @@
 
                         let state = '-';
                         if(current > 0) {
-                            let duration = Math.abs((capacityAh - remianingAh) / current).toFixed(3);
+                            let duration = ((capacityAh - remianingAh) / current).toFixed(3);
+                            if(duration < 0) {
+                                duration = 0;
+                            }
                             let hours = Math.floor(duration);
                             let minutes = new String(Math.round((duration - hours) * 60)).padStart(2, '0');
                             state = fmt.format(hours) + "h " + minutes + "m till charged";
                         } else if(current < 0) {
-                            let duration = Math.abs(remianingAh / current).toFixed(3);
+                            let duration = (remianingAh / current).toFixed(3);
+                            if(duration < 0) {
+                                duration = 0;
+                            }
                             let hours = Math.floor(duration);
                             let minutes = new String(Math.round((duration - hours) * 60)).padStart(2, '0');
                             state = fmt.format(hours) + "h " + minutes + "m till depleted";
@@ -215,6 +221,9 @@
 
                         $vf.value = voltage + ' / ' + current;
                         let chargePercent = (remianingAh / capacityAh) * 100;
+                        if(chargePercent > 100) {
+                            chargePercent = 100;
+                        }
                         $lf.value = fmt.format(chargePercent) + "% (" + remianingAh + "/" + capacityAh + ")";
                         $sf.value = state;
                         $wf.value = fmt.format((current * voltage).toFixed(2));
